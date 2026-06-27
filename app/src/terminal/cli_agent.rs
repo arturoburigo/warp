@@ -159,6 +159,28 @@ impl CLIAgent {
         }
     }
 
+    /// The command that re-opens an existing interactive session for this agent against its
+    /// native `session_id`, or `None` for agents with no known interactive resume invocation.
+    ///
+    /// `session_id` is placed directly on the command line, so it is rejected unless it is a
+    /// conservative identifier (ASCII alphanumerics, `-`, `_`) to keep the resulting command
+    /// injection-safe. Native agent session ids are UUID-shaped, so this never rejects a real id.
+    pub fn interactive_resume_command(&self, session_id: &str) -> Option<String> {
+        let is_safe_id = !session_id.is_empty()
+            && session_id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+        if !is_safe_id {
+            return None;
+        }
+        let cli = self.command_prefix();
+        match self {
+            CLIAgent::Claude => Some(format!("{cli} --resume {session_id}")),
+            CLIAgent::Codex => Some(format!("{cli} resume {session_id}")),
+            _ => None,
+        }
+    }
+
     /// Serialized version of the CLIAgent name (e.g. "Claude", "Gemini"). Used for the
     /// session-sharing protocol's opaque `cli_agent` string field.
     pub fn to_serialized_name(&self) -> String {

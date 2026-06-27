@@ -33,6 +33,15 @@ define_settings_group!(GeneralSettings, settings: [
         toml_path: "general.restore_session",
         description: "Whether to restore the previous session when Warp starts up.",
     },
+    resume_cli_agents_on_restore: ResumeCliAgentsOnRestore {
+        type: bool,
+        default: true,
+        supported_platforms: SupportedPlatforms::DESKTOP,
+        sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
+        private: false,
+        toml_path: "general.resume_cli_agents_on_restore",
+        description: "Whether to automatically resume third-party CLI agents (e.g. Claude Code) when restoring a session.",
+    },
     add_app_as_login_item: LoginItem {
         type: bool,
         default: true,

@@ -553,3 +553,34 @@ fn test_detect_aifx_agent_run_claude_wrong_team() {
         });
     });
 }
+
+#[test]
+fn test_interactive_resume_command() {
+    // Claude and Codex have known interactive resume invocations.
+    assert_eq!(
+        CLIAgent::Claude.interactive_resume_command("abc-123"),
+        Some("claude --resume abc-123".to_string()),
+    );
+    assert_eq!(
+        CLIAgent::Codex.interactive_resume_command("abc-123"),
+        Some("codex resume abc-123".to_string()),
+    );
+
+    // Agents without a known interactive resume invocation return None.
+    assert_eq!(CLIAgent::Gemini.interactive_resume_command("abc-123"), None);
+    assert_eq!(
+        CLIAgent::Unknown.interactive_resume_command("abc-123"),
+        None
+    );
+
+    // Empty or shell-unsafe session ids are rejected so the resulting command can never inject.
+    assert_eq!(CLIAgent::Claude.interactive_resume_command(""), None);
+    assert_eq!(
+        CLIAgent::Claude.interactive_resume_command("abc; rm -rf /"),
+        None,
+    );
+    assert_eq!(
+        CLIAgent::Claude.interactive_resume_command("$(whoami)"),
+        None
+    );
+}

@@ -19,6 +19,11 @@ use getset::Getters;
 use serde::{Deserialize, Serialize};
 use warpui::color::ColorU;
 
+/// Opacity applied to a tab's color when it tints split-pane dividers. Higher
+/// than the neutral divider (foreground @ 15%) so the tab color reads clearly
+/// on a thin line, but soft enough not to overpower the panes it separates.
+const TAB_COLORED_DIVIDER_OPACITY: Opacity = 60;
+
 const BLOCK_SELECTION_OPACITY: Opacity = 10;
 
 #[derive(Serialize, Copy, Clone, Debug, Deserialize, Getters, PartialEq, Eq)]
@@ -251,6 +256,19 @@ impl WarpTheme {
 
     pub fn split_pane_border_color(&self) -> Fill {
         fg_overlay_3(self)
+    }
+
+    /// Divider color for split panes, tinted by the owning tab's color when set.
+    /// Falls back to the neutral [`Self::split_pane_border_color`] when
+    /// `tab_color` is `None`.
+    pub fn split_pane_border_color_for(&self, tab_color: Option<AnsiColorIdentifier>) -> Fill {
+        match tab_color {
+            Some(color) => {
+                let fill: Fill = color.to_ansi_color(&self.terminal_colors().normal).into();
+                fill.with_opacity(TAB_COLORED_DIVIDER_OPACITY)
+            }
+            None => self.split_pane_border_color(),
+        }
     }
 
     pub fn accent_overlay(&self) -> Fill {

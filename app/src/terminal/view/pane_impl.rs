@@ -484,9 +484,7 @@ impl TerminalView {
                 button_size,
             ),
         );
-        icon_button_count += show_close_button as u32
-            + header_ctx.has_overflow_items as u32
-            + has_sharing_element as u32;
+        icon_button_count += has_sharing_element as u32;
 
         let min_width = header_edge_min_width(icon_button_count);
         (right_row.finish(), min_width)

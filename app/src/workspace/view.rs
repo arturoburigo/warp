@@ -3612,6 +3612,7 @@ impl Workspace {
                         self.tabs[tab_index].default_directory_color =
                             saved_tab.default_directory_color;
                         self.tabs[tab_index].selected_color = saved_tab.selected_color;
+                        Self::sync_tab_divider_color(&self.tabs[tab_index], ctx);
 
                         let pane_group = self.tabs[tab_index].pane_group.clone();
 
@@ -5165,6 +5166,7 @@ impl Workspace {
             return;
         }
         self.tabs[index].selected_color = color;
+        Self::sync_tab_divider_color(&self.tabs[index], ctx);
         send_telemetry_from_ctx!(
             TelemetryEvent::TabOperations {
                 action: if matches!(color, SelectedTabColor::Color(_)) {
@@ -5176,6 +5178,15 @@ impl Workspace {
             ctx
         );
         ctx.notify();
+    }
+
+    /// Mirrors the tab's resolved color onto its pane group so split-pane
+    /// dividers can be tinted with it. See [`FeatureFlag::TabColoredDividers`].
+    fn sync_tab_divider_color(tab: &TabData, ctx: &mut ViewContext<Self>) {
+        let color = tab.color();
+        tab.pane_group.clone().update(ctx, |pane_group, ctx| {
+            pane_group.set_tab_divider_color(color, ctx);
+        });
     }
 
     pub fn toggle_tab_color(
@@ -5225,6 +5236,7 @@ impl Workspace {
             .and_then(|c| c.ansi_color());
 
         tab.default_directory_color = color;
+        Self::sync_tab_divider_color(tab, ctx);
         ctx.notify();
     }
 

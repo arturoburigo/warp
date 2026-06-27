@@ -396,6 +396,10 @@ pub struct TerminalPane {
     pub conversation_ids: Option<String>,
     /// The active conversation ID if the agent view was open in fullscreen mode.
     pub active_conversation_id: Option<String>,
+    /// Serialized name of the CLI agent that was running in this pane (e.g. "Claude"), if any.
+    pub cli_agent_kind: Option<String>,
+    /// The CLI agent's native session id, used to resume the agent on restore.
+    pub cli_agent_session_id: Option<String>,
 }
 
 #[derive(Identifiable, Queryable, Selectable)]
@@ -586,6 +590,10 @@ pub struct NewTerminalPane {
     pub conversation_ids: Option<String>,
     /// The active conversation ID if the agent view was open in fullscreen mode.
     pub active_conversation_id: Option<String>,
+    /// Serialized name of the CLI agent that was running in this pane (e.g. "Claude"), if any.
+    pub cli_agent_kind: Option<String>,
+    /// The CLI agent's native session id, used to resume the agent on restore.
+    pub cli_agent_session_id: Option<String>,
 }
 
 #[derive(Insertable)]

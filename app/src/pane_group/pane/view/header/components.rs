@@ -75,36 +75,18 @@ pub fn render_pane_overflow_button<A: ActionPayload, B: ActionPayload>(
 /// Renders a row containing the standard pane overflow and close buttons.
 #[cfg_attr(target_family = "wasm", allow(dead_code))]
 pub fn render_pane_header_buttons<A: ActionPayload, B: ActionPayload>(
-    header_ctx: &HeaderRenderContext<'_>,
-    appearance: &Appearance,
-    show_close_button: bool,
-    icon_color: Option<Fill>,
-    button_size: Option<f32>,
+    _header_ctx: &HeaderRenderContext<'_>,
+    _appearance: &Appearance,
+    _show_close_button: bool,
+    _icon_color: Option<Fill>,
+    _button_size: Option<f32>,
 ) -> Box<dyn Element> {
-    let mut row = Flex::row()
+    // Pane headers intentionally render no overflow (⋮) or close (✕) buttons,
+    // so the header shows only its title.
+    Flex::row()
         .with_cross_axis_alignment(CrossAxisAlignment::Center)
-        .with_main_axis_size(MainAxisSize::Min);
-
-    if header_ctx.has_overflow_items {
-        row.add_child(render_pane_overflow_button::<A, B>(
-            appearance,
-            header_ctx.overflow_button_mouse_state.clone(),
-            &header_ctx.overflow_button_position_id,
-            icon_color,
-            button_size,
-        ));
-    }
-
-    if show_close_button {
-        row.add_child(render_pane_close_button::<A, B>(
-            appearance,
-            header_ctx.close_button_mouse_state.clone(),
-            icon_color,
-            button_size,
-        ));
-    }
-
-    row.finish()
+        .with_main_axis_size(MainAxisSize::Min)
+        .finish()
 }
 
 /// Renders a title text element with the standard pane header font, color, and clipping.
