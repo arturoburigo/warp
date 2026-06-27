@@ -451,6 +451,8 @@ impl PaneContent for TerminalPane {
                 active_profile_id: None,
                 conversation_ids_to_restore: vec![],
                 active_conversation_id: None,
+                cli_agent_kind: None,
+                cli_agent_session_id: None,
             })
         } else if view.model.lock().is_conversation_transcript_viewer() {
             // Conversation transcript viewers (opened from the conversation list)
@@ -473,6 +475,8 @@ impl PaneContent for TerminalPane {
                     active_profile_id: None,
                     conversation_ids_to_restore: vec![],
                     active_conversation_id: None,
+                    cli_agent_kind: None,
+                    cli_agent_session_id: None,
                 })
             }
         } else {
@@ -503,6 +507,18 @@ impl PaneContent for TerminalPane {
                         .active_conversation_id()
                 });
 
+            // Capture the running CLI agent's native session id so it can be resumed on restore.
+            // Only recorded when a resumable session id is actually known (plugin-instrumented
+            // agents such as Claude Code); otherwise both fields stay `None`.
+            let (cli_agent_kind, cli_agent_session_id) =
+                match CLIAgentSessionsModel::as_ref(app).session(self.terminal_view(app).id()) {
+                    Some(session) if session.session_context.session_id.is_some() => (
+                        Some(session.agent.to_serialized_name()),
+                        session.session_context.session_id.clone(),
+                    ),
+                    _ => (None, None),
+                };
+
             LeafContents::Terminal(TerminalPaneSnapshot {
                 uuid: self.uuid.clone(),
                 cwd: view.pwd_if_local(app),
@@ -514,6 +530,8 @@ impl PaneContent for TerminalPane {
                 active_profile_id,
                 conversation_ids_to_restore,
                 active_conversation_id,
+                cli_agent_kind,
+                cli_agent_session_id,
             })
         }
     }

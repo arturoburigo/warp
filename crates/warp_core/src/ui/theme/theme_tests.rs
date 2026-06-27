@@ -339,3 +339,29 @@ fn infer_from_foreground_color_test() {
         ColorScheme::DarkOnLight
     );
 }
+
+#[test]
+fn split_pane_border_color_for_test() {
+    let theme = WarpTheme::new(
+        Fill::Solid(ColorU::from_u32(0x20A5BAFF)),
+        ColorU::from_u32(0x20A5BAFF),
+        Fill::Solid(ColorU::from_u32(0x20A5BAFF)),
+        None,
+        Some(Details::Darker),
+        mock_terminal_colors(),
+        None,
+        None,
+    );
+
+    // No tab color -> the neutral, foreground-derived divider.
+    assert_eq!(
+        theme.split_pane_border_color_for(None),
+        theme.split_pane_border_color()
+    );
+
+    // A tab color -> a distinct, tinted divider.
+    assert_ne!(
+        theme.split_pane_border_color_for(Some(AnsiColorIdentifier::Red)),
+        theme.split_pane_border_color()
+    );
+}

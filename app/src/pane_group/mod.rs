@@ -67,6 +67,7 @@ use std::sync::{mpsc::SyncSender, Arc};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 
+use crate::themes::theme::AnsiColorIdentifier;
 use markdown_parser::FormattedTextFragment;
 use parking_lot::FairMutex;
 use pathfinder_geometry::rect::RectF;
@@ -917,6 +918,11 @@ pub struct PaneGroup {
 
     /// Tab-level custom title set via the rename-tab flow.
     custom_title: Option<String>,
+
+    /// Tab-level color mirrored from the owning tab, used to tint this group's
+    /// split-pane dividers. Synced by the workspace; `None` renders the default
+    /// neutral divider. Gated by [`FeatureFlag::TabColoredDividers`].
+    tab_divider_color: Option<AnsiColorIdentifier>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -1629,6 +1635,28 @@ impl PaneGroup {
 
                 let terminal_view_id = terminal_view.id();
 
+                // Auto-resume a third-party CLI agent (Claude Code, Codex) that was running in this
+                // pane by re-issuing its native resume command in the freshly-spawned shell. The
+                // command is queued until the shell finishes bootstrapping (see
+                // `execute_command_or_set_pending`), so issuing it here is safe even though the
+                // restored shell is not yet ready.
+                if FeatureFlag::CLIAgentResumeOnRestore.is_enabled()
+                    && *GeneralSettings::as_ref(ctx).resume_cli_agents_on_restore
+                {
+                    if let (Some(kind), Some(session_id)) = (
+                        terminal_snapshot.cli_agent_kind.as_deref(),
+                        terminal_snapshot.cli_agent_session_id.as_deref(),
+                    ) {
+                        if let Some(command) = crate::terminal::CLIAgent::from_serialized_name(kind)
+                            .interactive_resume_command(session_id)
+                        {
+                            terminal_view.update(ctx, |terminal_view, ctx| {
+                                terminal_view.execute_command_or_set_pending(&command, ctx);
+                            });
+                        }
+                    }
+                }
+
                 let pane_data = TerminalPane::new(
                     uuid.0,
                     terminal_manager,
@@ -2097,6 +2125,8 @@ impl PaneGroup {
                             active_profile_id: None,
                             conversation_ids_to_restore: Vec::new(),
                             active_conversation_id: None,
+                            cli_agent_kind: None,
+                            cli_agent_session_id: None,
                         })
                     }
                 };
@@ -3028,6 +3058,7 @@ impl PaneGroup {
             pending_ambient_agent_conversation_restorations: HashMap::new(),
             child_agent_panes: HashMap::new(),
             custom_title: None,
+            tab_divider_color: None,
         };
 
         // Notify any restored panes that they belong to this pane group.
@@ -4960,6 +4991,18 @@ impl PaneGroup {
         // refocus on the focused pane
         if let Some(pane) = self.focused_pane_content(ctx) {
             pane.focus(ctx);
+        }
+    }
+
+    /// Mirrors the owning tab's color so split-pane dividers can be tinted with it.
+    pub fn set_tab_divider_color(
+        &mut self,
+        color: Option<AnsiColorIdentifier>,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        if self.tab_divider_color != color {
+            self.tab_divider_color = color;
+            ctx.notify();
         }
     }
 
@@ -7081,7 +7124,10 @@ impl View for PaneGroup {
         let main_content = if self.is_focused_pane_maximized(app) {
             self.focused_pane_id(app).render(app)
         } else {
-            EventHandler::new(self.panes.render(appearance.theme(), app))
+            let divider_color = self
+                .tab_divider_color
+                .filter(|_| FeatureFlag::TabColoredDividers.is_enabled());
+            EventHandler::new(self.panes.render(appearance.theme(), divider_color, app))
                 .on_mouse_dragged(move |ctx, _, position| {
                     ctx.dispatch_typed_action(PaneGroupAction::ResizeMove(position));
                     DispatchEventResult::StopPropagation

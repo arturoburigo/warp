@@ -20,8 +20,9 @@ use warpui::{
 
 use super::{ActivationReason, PaneGroup, PaneId};
 use crate::pane_group::{get_minimum_pane_size, DraggedBorder, PaneGroupAction};
-use crate::themes::theme::WarpTheme;
+use crate::themes::theme::{AnsiColorIdentifier, Fill, WarpTheme};
 use warp_core::features::FeatureFlag;
+use warpui::color::ColorU;
 
 #[cfg(test)]
 #[path = "tree_tests.rs"]
@@ -30,8 +31,13 @@ mod tests;
 pub(in crate::pane_group) const DEFAULT_FLEX_VALUE: f32 = 1.0;
 pub(in crate::pane_group) const DEFAULT_FLEX_SIZE: PaneFlex = PaneFlex(DEFAULT_FLEX_VALUE);
 
+/// Gap width (in px) between framed panes when the focused-pane frame feature is on.
+const PANE_FRAME_GAP: f32 = 6.0;
+
 pub fn get_divider_thickness() -> f32 {
-    if FeatureFlag::MinimalistUI.is_enabled() {
+    if FeatureFlag::TabColoredDividers.is_enabled() {
+        PANE_FRAME_GAP
+    } else if FeatureFlag::MinimalistUI.is_enabled() {
         1.0
     } else {
         2.0
@@ -492,10 +498,15 @@ impl PaneData {
         self.len == 0
     }
 
-    pub fn render(&self, theme: &WarpTheme, app: &AppContext) -> Box<dyn Element> {
+    pub fn render(
+        &self,
+        theme: &WarpTheme,
+        divider_color: Option<AnsiColorIdentifier>,
+        app: &AppContext,
+    ) -> Box<dyn Element> {
         match &self.root {
             PaneNode::Leaf(pane) => pane.render(app),
-            PaneNode::Branch(node) => node.render(theme, &self.hidden_panes, app),
+            PaneNode::Branch(node) => node.render(theme, divider_color, &self.hidden_panes, app),
         }
     }
 
@@ -695,6 +706,7 @@ impl PaneNode {
     fn render(
         &self,
         theme: &WarpTheme,
+        divider_color: Option<AnsiColorIdentifier>,
         hidden_panes: &Vec<HiddenPane>,
         app: &AppContext,
     ) -> Box<dyn Element> {
@@ -711,7 +723,7 @@ impl PaneNode {
                     })
                     .finish()
             }
-            PaneNode::Branch(branch) => branch.render(theme, hidden_panes, app),
+            PaneNode::Branch(branch) => branch.render(theme, divider_color, hidden_panes, app),
         }
     }
 
@@ -1024,6 +1036,7 @@ impl PaneBranch {
     fn render(
         &self,
         theme: &WarpTheme,
+        divider_color: Option<AnsiColorIdentifier>,
         hidden_panes: &Vec<HiddenPane>,
         app: &AppContext,
     ) -> Box<dyn Element> {
@@ -1057,7 +1070,11 @@ impl PaneBranch {
             }
 
             parent.add_child(
-                Shrinkable::new(flex_value, node.render(theme, hidden_panes, app)).finish(),
+                Shrinkable::new(
+                    flex_value,
+                    node.render(theme, divider_color, hidden_panes, app),
+                )
+                .finish(),
             );
             if let Some(divider) = dividers.next() {
                 if matches!(node, PaneNode::Leaf(id) if pane_hidden_for_move(hidden_panes, id)) {
@@ -1084,9 +1101,9 @@ impl PaneBranch {
         // (the reason we have to do it this way is explained in the large comment above)
         for (divider, position_id) in divider_positions {
             let divider_element = if FeatureFlag::MinimalistUI.is_enabled() {
-                create_minimalist_divider(self.axis, divider, theme)
+                create_minimalist_divider(self.axis, divider, theme, divider_color)
             } else {
-                create_divider(self.axis, divider, theme)
+                create_divider(self.axis, divider, theme, divider_color)
             };
 
             stack.add_positioned_child(
@@ -1352,14 +1369,29 @@ fn create_divider_placeholder(direction: SplitDirection, position_id: &str) -> B
     SavePosition::new(placeholder, position_id).finish()
 }
 
+/// Background for the split divider. When the focused-pane frame feature is on, the
+/// divider is painted with the window background so its reserved width reads as a small
+/// gap between the per-pane borders rather than a line; otherwise it's the usual divider
+/// color (optionally tinted by the tab color).
+fn divider_background(theme: &WarpTheme, divider_color: Option<AnsiColorIdentifier>) -> Fill {
+    if FeatureFlag::TabColoredDividers.is_enabled() {
+        // Transparent so the divider's reserved width becomes a real gap between the
+        // per-pane borders instead of painting over them.
+        Fill::Solid(ColorU::transparent_black())
+    } else {
+        theme.split_pane_border_color_for(divider_color)
+    }
+}
+
 fn create_divider(
     direction: SplitDirection,
     item: &Divider,
     theme: &WarpTheme,
+    divider_color: Option<AnsiColorIdentifier>,
 ) -> Box<dyn Element> {
     let divider = ConstrainedBox::new(
         Rect::new()
-            .with_background(theme.split_pane_border_color())
+            .with_background(divider_background(theme, divider_color))
             .finish(),
     );
 
@@ -1394,10 +1426,11 @@ fn create_minimalist_divider(
     direction: SplitDirection,
     item: &Divider,
     theme: &WarpTheme,
+    divider_color: Option<AnsiColorIdentifier>,
 ) -> Box<dyn Element> {
     let divider = ConstrainedBox::new(
         Rect::new()
-            .with_background(theme.split_pane_border_color())
+            .with_background(divider_background(theme, divider_color))
             .finish(),
     );
 

@@ -27,6 +27,8 @@ use warpui::{
 };
 
 use crate::pane_group::focus_state::{PaneFocusHandle, PaneGroupFocusEvent};
+use crate::themes::theme::Fill;
+use warp_core::features::FeatureFlag;
 
 pub use header::PaneHeaderAction;
 pub use header::PaneHeaderAction::CustomAction as PaneHeaderCustomAction;
@@ -394,9 +396,24 @@ impl<P: BackingView> View for PaneView<P> {
         column.add_child(Shrinkable::new(1., ChildView::new(&active_child).finish()).finish());
 
         let mut container = Container::new(column.finish());
+        // In a split, frame every pane with a thin border: the focused pane gets a
+        // vivid accent, unfocused panes a faded one, so the active pane stands out.
+        // (Gated by FeatureFlag::TabColoredDividers.)
+        let pane_frame_enabled =
+            FeatureFlag::TabColoredDividers.is_enabled() && split_pane_state.is_in_split_pane();
         if pane_configuration.show_accent_border {
             let border = Border::all(2.).with_border_fill(appearance.theme().accent());
             container = container.with_border(border);
+        } else if pane_frame_enabled {
+            // Use a solid (not gradient) accent so the frame is a uniform line on all
+            // sides; the focused pane is vivid, unfocused panes are faded.
+            let accent = appearance.theme().accent().into_solid();
+            let border_fill = if split_pane_state.is_focused() {
+                Fill::Solid(accent)
+            } else {
+                Fill::Solid(accent).with_opacity(50)
+            };
+            container = container.with_border(Border::all(2.).with_border_fill(border_fill));
         }
 
         // Dim inactive panes.

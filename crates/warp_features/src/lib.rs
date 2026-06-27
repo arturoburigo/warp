@@ -699,6 +699,10 @@ pub enum FeatureFlag {
     /// Ctrl-G intercepts the keystroke and opens Warp's input editor instead of $EDITOR.
     CLIAgentRichInput,
 
+    /// On session restore, automatically re-launches a third-party CLI agent (e.g. Claude Code,
+    /// Codex) against its saved native session id so the agent resumes its prior conversation.
+    CLIAgentResumeOnRestore,
+
     /// Enables incremental (diff-based) buffer updates for auto-reload instead of full replace.
     IncrementalAutoReload,
 
@@ -754,6 +758,11 @@ pub enum FeatureFlag {
     /// Enables associating a tab color with a directory so tabs automatically
     /// adopt the configured color when their working directory matches.
     DirectoryTabColors,
+
+    /// Tints the split-pane dividers within a tab with that tab's color
+    /// (manually chosen or directory-derived) instead of the default neutral
+    /// hairline. Falls back to the neutral divider when the tab has no color.
+    TabColoredDividers,
 
     /// Enables the new settings to control visibility of Warp Drive, Code Review Panel,
     /// and Project Explorer & Global Search features.
@@ -941,6 +950,7 @@ pub const DOGFOOD_FLAGS: &[FeatureFlag] = &[
     FeatureFlag::CloudModeInputV2,
     FeatureFlag::HandoffLocalCloud,
     FeatureFlag::DragTabsToWindows,
+    FeatureFlag::TabColoredDividers,
 ];
 
 /// Features enabled for feature preview build users (e.g.: Friends of Warp).
